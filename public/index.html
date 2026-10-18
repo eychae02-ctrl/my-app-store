@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11182b">
+  <meta name="description" content="내가 만든 앱을 이곳에서 바로 업로드하고 친구들에게 공유하세요.">
+  <title>내 앱 광장 — 나만의 앱스토어</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner wrap">
+      <a href="/" class="brand" aria-label="내 앱 광장 홈"><span class="brand-icon">✦</span><span>내 앱<span class="brand-accent">광장</span></span></a>
+      <nav class="nav" aria-label="주 메뉴">
+        <a class="nav-current" href="#apps">앱 둘러보기</a>
+        <button id="navUpload" class="nav-upload" type="button">＋ 앱 올리기</button>
+        <button id="adminButton" class="icon-button" aria-label="관리자 로그인" title="관리자 로그인" type="button">⚙</button>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="hero wrap" aria-labelledby="heroTitle">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="dot"></span> 나만의 앱스토어, 직접 운영하기</div>
+        <h1 id="heroTitle">내가 만든 앱,<br><em>세상에 공개해 봐!</em></h1>
+        <p>게임도, 웹앱도, 안드로이드 앱도. 앱 안에서 파일을 올리면 모두가 바로 만나볼 수 있어요.</p>
+        <div class="hero-actions">
+          <button id="heroUpload" class="primary-button" type="button">＋ 내 앱 올리기 <span aria-hidden="true">↗</span></button>
+          <a href="#apps" class="secondary-button">앱 구경하기 ↓</a>
+        </div>
+        <div class="hero-stats"><div><strong id="statApps">0</strong><small>등록된 앱</small></div><div class="stat-divider"></div><div><strong id="statGames">0</strong><small>플레이할 게임</small></div><div class="stat-divider"></div><div><strong id="statAndroid">0</strong><small>안드로이드 앱</small></div></div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="blob blob-one"></div><div class="blob blob-two"></div>
+        <div class="phone">
+          <div class="phone-top"><span></span><i></i></div>
+          <div class="phone-head"><div class="mini-logo">✦</div><div><b>오늘의 발견</b><small>새로운 앱을 만나보세요</small></div></div>
+          <div class="phone-feature"><div class="feature-orbit"><span>🎮</span></div><strong>당신의 다음<br>즐겨찾기</strong><small>지금 플레이하세요 →</small></div>
+          <div class="phone-mini"><span class="mini-icon lilac">✏</span><div><b>직접 만든 앱</b><small>누구나 등록할 수 있어요</small></div><span class="mini-arrow">↗</span></div>
+          <div class="phone-mini"><span class="mini-icon mint">◈</span><div><b>친구에게 공유</b><small>링크 하나로 간단하게</small></div><span class="mini-arrow">↗</span></div>
+          <div class="phone-bottom"></div>
+        </div>
+        <div class="floating floating-top">✦ 새로운 앱 등록!</div>
+        <div class="floating floating-bottom">🚀 게임 바로 실행</div>
+      </div>
+    </section>
+    <section class="browse-section" id="apps" aria-labelledby="browseTitle">
+      <div class="wrap browse-wrap">
+        <div class="section-top"><div><div class="section-kicker">DISCOVER</div><h2 id="browseTitle">앱 둘러보기</h2><p>좋아하는 앱을 찾아보고 바로 실행해 보세요.</p></div><button id="sectionUpload" type="button" class="outline-button">＋ 앱 등록</button></div>
+        <div class="toolbar">
+          <div class="searchbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="searchInput" type="search" placeholder="앱 이름이나 제작자 검색" aria-label="앱 검색"></div>
+          <div class="categories" role="group" aria-label="카테고리"><button data-filter="전체" class="chip active">전체</button><button data-filter="게임" class="chip">🎮 게임</button><button data-filter="도구" class="chip">🛠 도구</button><button data-filter="교육" class="chip">📚 교육</button><button data-filter="생활" class="chip">☀ 생활</button><button data-filter="기타" class="chip">더보기</button></div>
+        </div>
+        <div id="appGrid" class="app-grid" aria-live="polite"></div>
+        <div id="emptyState" class="empty-state" hidden><div class="empty-illustration">📱<span>✦</span></div><h3 id="emptyTitle">아직 등록된 앱이 없어요</h3><p id="emptyText">첫 번째 앱을 올리고 나만의 스토어를 시작해 봐요!</p><button id="emptyUpload" type="button" class="primary-button">첫 앱 올리기 ↗</button></div>
+      </div>
+    </section>
+    <section class="info-strip wrap"><div class="info-icon">💡</div><div><strong>어떤 앱을 올릴 수 있나요?</strong><p>HTML 파일은 바로 실행할 수 있고, ZIP으로 묶은 웹게임도 등록할 수 있어요. APK 파일은 안드로이드 사용자가 내려받을 수 있어요.</p></div></section>
+  </main>
+  <footer><div class="wrap footer-inner"><span class="brand footer-brand"><span class="brand-icon">✦</span> 내 앱광장</span><span>직접 만들고, 직접 공유하는 공간 ✨</span></div></footer>
+
+  <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header"><div><small id="modalEyebrow">PUBLISH YOUR APP</small><h2 id="modalTitle">내 앱 올리기</h2></div><button id="modalClose" type="button" class="close-button" aria-label="닫기">✕</button></div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
