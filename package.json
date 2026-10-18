@@ -1,0 +1,9 @@
+{
+  "name": "my-app-store",
+  "version": "1.0.0",
+  "private": true,
+  "description": "휴대폰에서 직접 앱과 게임을 올리는 나만의 앱 스토어",
+  "type": "commonjs",
+  "scripts": { "start": "node server.js", "dev": "node server.js" },
+  "engines": { "node": ">=20" }
+}
