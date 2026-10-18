@@ -13,20 +13,22 @@ async function request(url, opts={}){
 }
 function counts(){
   $('statApps').textContent=state.apps.length.toLocaleString('ko-KR');
-  $('statGames').textContent=state.apps.filter(a=>a.kind==='web').length.toLocaleString('ko-KR');
+  $('statGames').textContent=state.apps.filter(a=>a.kind==='web'||a.kind==='link').length.toLocaleString('ko-KR');
   $('statAndroid').textContent=state.apps.filter(a=>a.kind==='android').length.toLocaleString('ko-KR');
 }
 function displayDate(s){const d=new Date(s);return isNaN(d)?'최근':d.toLocaleDateString('ko-KR',{year:'numeric',month:'short',day:'numeric'});}
 function cardMarkup(app){
   const icon=app.iconUrl?`<img class="app-icon" alt="" src="${moneySafe(app.iconUrl)}" loading="lazy">`:`<div class="app-icon" aria-hidden="true">${catIcon[app.category]||'✨'}</div>`;
   const isWeb=app.kind==='web';
+  const isLink=app.kind==='link';
+  const actionUrl=isWeb?app.playUrl:isLink?app.externalUrl:app.downloadUrl;
   return `<article class="app-card"><div class="card-head">${icon}<div class="app-meta"><h3 title="${moneySafe(app.title)}">${moneySafe(app.title)}</h3><p>${moneySafe(app.author)}</p></div></div>
-    <div class="app-badge ${isWeb?'':'android'}">${isWeb?'▶ 웹에서 실행':'↓ 안드로이드 APK'}</div>
+    <div class="app-badge ${isLink?'external':isWeb?'':'android'}">${isLink?'🔗 외부 링크':isWeb?'▶ 웹에서 실행':'↓ 안드로이드 APK'}</div>
     <p class="app-desc">${moneySafe(app.description||'직접 만든 새로운 앱을 만나보세요!')}</p>
     <div class="card-footer"><small>${moneySafe(app.category)} · ${displayDate(app.createdAt)}</small><div class="card-actions">
       ${state.admin?`<button class="card-action delete-action" type="button" data-delete="${app.id}" aria-label="${moneySafe(app.title)} 삭제">삭제</button>`:''}
       <button class="card-action share-action" type="button" data-share="${app.id}" aria-label="${moneySafe(app.title)} 공유">공유</button>
-      <a class="card-action" ${isWeb?`href="${moneySafe(app.playUrl)}" target="_blank" rel="noopener"`:`href="${moneySafe(app.downloadUrl)}" download`}>${isWeb?'실행 ↗':'받기 ↓'}</a>
+      <a class="card-action" href="${moneySafe(actionUrl||'#')}" ${isWeb||isLink?'target="_blank" rel="noopener noreferrer"':'download'}>${isLink?'열기 ↗':isWeb?'실행 ↗':'받기 ↓'}</a>
     </div></div></article>`;
 }
 function render(){
@@ -74,42 +76,60 @@ function showOwner(){
 }
 function showUpload(){
   if(!state.admin)return showLogin('upload');
-  modal('내 앱 올리기','PUBLISH YOUR APP',`<div class="modal-content"><form id="uploadForm" enctype="multipart/form-data">
+  modal('내 앱 등록하기','PUBLISH YOUR APP',`<div class="modal-content"><form id="uploadForm" enctype="multipart/form-data">
     <div class="form-row"><label for="appTitle">앱 이름 *</label><input id="appTitle" name="title" maxlength="60" placeholder="예: 우주 탐험 게임" required></div>
     <div class="upload-two"><div class="form-row"><label for="appAuthor">제작자</label><input id="appAuthor" name="author" maxlength="40" placeholder="예: 나의 게임 스튜디오"></div><div class="form-row"><label for="appCategory">카테고리</label><select id="appCategory" name="category"><option>게임</option><option>도구</option><option>교육</option><option>생활</option><option>기타</option></select></div></div>
     <div class="form-row"><label for="appDescription">앱 소개</label><textarea name="description" id="appDescription" maxlength="600" placeholder="어떤 앱인지 간단히 설명해주세요."></textarea></div>
-    <div class="form-row"><label>앱 파일 * <span class="form-hint">(HTML / ZIP / APK)</span></label><label class="file-drop" for="appFile"><span class="file-emoji">📦</span><strong id="appFileName">클릭해서 앱 파일 선택하기</strong><small>최대 65MB · HTML / ZIP / APK</small><input id="appFile" type="file" name="app" accept=".html,.zip,.apk" required></label><div class="form-hint">여러 파일로 된 웹게임은 index.html을 포함한 ZIP 파일로 올려주세요.</div></div>
+    <div class="form-row"><label>앱 등록 방식 *</label><div class="mode-picker" role="group" aria-label="앱 등록 방식"><button class="mode-button selected" data-mode="file" type="button" aria-pressed="true">📦 파일 업로드</button><button class="mode-button" data-mode="link" type="button" aria-pressed="false">🔗 링크 등록</button></div></div>
+    <input type="hidden" id="uploadMode" name="mode" value="file">
+    <div id="fileUploadArea" class="form-row"><label>앱 파일 * <span class="form-hint">(HTML / ZIP / APK)</span></label><label class="file-drop" for="appFile"><span class="file-emoji">📦</span><strong id="appFileName">눌러서 앱 파일 선택하기</strong><small>최대 65MB · HTML / ZIP / APK</small><input id="appFile" type="file" name="app" accept=".html,.zip,.apk" required></label><div class="form-hint">여러 파일로 된 웹게임은 index.html을 포함한 ZIP 파일로 올려주세요.</div></div>
+    <div id="linkUploadArea" class="form-row" hidden><label for="appLink">앱 링크 *</label><input id="appLink" name="linkUrl" type="url" inputmode="url" maxlength="2000" placeholder="https://내게임주소.com" autocomplete="url" disabled><p class="form-hint">이미 인터넷에 공개된 앱 주소를 넣어주세요. 주소를 등록하므로 앱 파일을 다시 올릴 필요가 없어요.</p></div>
     <div class="form-row"><label>앱 아이콘 (선택)</label><label class="file-drop" for="appIcon" style="min-height:76px;padding:12px"><strong id="appIconName">🖼 아이콘 이미지 선택하기</strong><small>PNG / JPG / WEBP · 최대 3MB</small><input id="appIcon" type="file" name="icon" accept=".png,.jpg,.jpeg,.webp"></label></div>
-    <div class="alert">업로드한 앱은 누구나 볼 수 있어요. 본인이 제작했거나 배포할 권한이 있는 파일만 올려주세요.</div>
-    <p class="error-text" id="uploadError" hidden></p><div id="progressArea" hidden><div class="upload-progress"><span id="progressFill"></span></div><small class="upload-progress-label" id="progressLabel">업로드 중…</small></div>
+    <div class="alert">등록한 앱은 누구나 볼 수 있어요. 본인이 만들었거나 공유할 권한이 있는 파일과 링크만 등록해 주세요.</div>
+    <p class="error-text" id="uploadError" hidden></p><div id="progressArea" hidden><div class="upload-progress"><span id="progressFill"></span></div><small class="upload-progress-label" id="progressLabel">등록 중…</small></div>
     <div class="form-buttons"><button type="button" data-close class="secondary-button" id="uploadCancel">취소</button><button type="submit" class="primary-button" id="uploadSubmit">🚀 앱 공개하기</button></div>
   </form></div>`);
-  $('appFile').addEventListener('change',()=>{const f=$('appFile').files[0];$('appFileName').textContent=f?`✓ ${f.name}`:'클릭해서 앱 파일 선택하기';});
+  document.querySelectorAll('.mode-button').forEach(btn=>btn.addEventListener('click',()=>{
+    const mode=btn.dataset.mode;
+    $('uploadMode').value=mode;
+    $('fileUploadArea').hidden=mode!=='file';$('linkUploadArea').hidden=mode!=='link';
+    $('appFile').disabled=mode!=='file';$('appFile').required=mode==='file';
+    $('appLink').disabled=mode!=='link';$('appLink').required=mode==='link';
+    document.querySelectorAll('.mode-button').forEach(x=>{const current=x===btn;x.classList.toggle('selected',current);x.setAttribute('aria-pressed',String(current));});
+    $('uploadError').hidden=true;
+    (mode==='link'?$('appLink'):$('appFile')).focus();
+  }));
+  $('appFile').addEventListener('change',()=>{const f=$('appFile').files[0];$('appFileName').textContent=f?`✓ ${f.name}`:'눌러서 앱 파일 선택하기';});
   $('appIcon').addEventListener('change',()=>{const f=$('appIcon').files[0];$('appIconName').textContent=f?`✓ ${f.name}`:'🖼 아이콘 이미지 선택하기';});
   $('uploadForm').addEventListener('submit',sendUpload);
 }
 function sendUpload(e){
-  e.preventDefault();const f=$('appFile').files[0],icon=$('appIcon').files[0];
+  e.preventDefault();const mode=$('uploadMode').value;
+  const f=$('appFile').files[0],icon=$('appIcon').files[0];
   const error=$('uploadError');error.hidden=true;
-  if(!f)return;
-  if(f.size>65*1024*1024){error.textContent='앱 파일이 65MB를 초과했어요.';error.hidden=false;return;}
+  if(mode==='file'&&!f){error.textContent='파일을 선택해 주세요.';error.hidden=false;return;}
+  if(mode==='file'&&f.size>65*1024*1024){error.textContent='앱 파일이 65MB를 초과했어요.';error.hidden=false;return;}
+  if(mode==='link'){
+    try{const u=new URL($('appLink').value.trim());if(!['https:','http:'].includes(u.protocol)||!u.hostname)throw new Error();}
+    catch{error.textContent='https://로 시작하는 정확한 앱 링크를 입력해 주세요.';error.hidden=false;return;}
+  }
   if(icon&&icon.size>3*1024*1024){error.textContent='아이콘은 3MB 이하로 선택해 주세요.';error.hidden=false;return;}
   const form=new FormData($('uploadForm'));
-  const btn=$('uploadSubmit');btn.disabled=true;btn.textContent='업로드 중…';$('uploadCancel').disabled=true;
-  $('progressArea').hidden=false;
+  const btn=$('uploadSubmit');btn.disabled=true;btn.textContent=mode==='link'?'링크 등록 중…':'파일 업로드 중…';$('uploadCancel').disabled=true;
+  $('progressArea').hidden=false;$('progressFill').style.width='0%';$('progressLabel').textContent=mode==='link'?'앱 링크 등록 중…':'업로드 중…';
   const xhr=new XMLHttpRequest();xhr.open('POST','/api/upload');
   xhr.upload.onprogress=ev=>{if(ev.lengthComputable){const percent=Math.min(99,Math.round(ev.loaded/ev.total*100));$('progressFill').style.width=percent+'%';$('progressLabel').textContent=`전송 중 ${percent}%`;}};
   xhr.onload=async()=>{
     let result;try{result=JSON.parse(xhr.responseText);}catch{result={};}
     if(xhr.status>=200&&xhr.status<300){$('progressFill').style.width='100%';closeModal();toast('🎉 앱이 등록되었어요!');state.query='';state.filter='전체';$('searchInput').value='';document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.filter==='전체'));try{await reload();}catch(e){toast('등록됐지만 목록을 다시 불러오지 못했어요.');}location.hash='apps';}
-    else {error.textContent=result.error||'업로드하지 못했어요.';error.hidden=false;btn.disabled=false;btn.textContent='🚀 다시 시도하기';$('uploadCancel').disabled=false;$('progressArea').hidden=true;}
+    else {error.textContent=result.error||'등록하지 못했어요.';error.hidden=false;btn.disabled=false;btn.textContent='🚀 다시 시도하기';$('uploadCancel').disabled=false;$('progressArea').hidden=true;}
   };
   xhr.onerror=()=>{error.textContent='네트워크 연결을 확인해 주세요.';error.hidden=false;btn.disabled=false;btn.textContent='🚀 다시 시도하기';$('uploadCancel').disabled=false;$('progressArea').hidden=true;};
   xhr.send(form);
 }
 async function share(id){
   const app=state.apps.find(a=>a.id===id);if(!app)return;
-  const address=new URL(app.kind==='web'?app.playUrl:app.downloadUrl,location.origin).href;
+  const address=new URL(app.kind==='web'?app.playUrl:app.kind==='link'?app.externalUrl:app.downloadUrl,location.origin).href;
   try{if(navigator.share){await navigator.share({title:app.title,url:address});return;}
     if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(address);
     else{const el=document.createElement('textarea');el.value=address;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove();}
