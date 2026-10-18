@@ -21,6 +21,7 @@ const MAX_ICON = 3 * 1024 * 1024;
 const MAX_EXTRACT = 130 * 1024 * 1024;
 const MAX_FILES = 500;
 const JSON_LIMIT = 16 * 1024;
+const MAX_LINK_LENGTH = 2000;
 const MIME = {
   '.html':'text/html; charset=utf-8', '.htm':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8',
   '.mjs':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8',
@@ -63,6 +64,14 @@ let lock=Promise.resolve();
 function mutate(fn){const next=lock.then(async()=>{const arr=await readDB();const value=await fn(arr);await writeDB(arr);return value;});lock=next.catch(()=>{});return next;}
 function safeSegment(s){return /^[a-f0-9-]{36}$/.test(s);}
 function isAllowedFile(filename) { const ext=path.extname(filename).toLowerCase();return ['.html','.zip','.apk'].includes(ext)?ext:null; }
+function safeExternalUrl(input){
+  if(typeof input!=='string' || input.length>MAX_LINK_LENGTH || input.trim()!==input || /[\u0000-\u001f\u007f]/.test(input))throw new Error('링크가 올바르지 않아요.');
+  let url;
+  try {url=new URL(input);} catch {throw new Error('https://로 시작하는 정확한 앱 주소를 입력해 주세요.');}
+  if(!['http:','https:'].includes(url.protocol) || !url.hostname || url.username || url.password)throw new Error('http:// 또는 https:// 앱 주소만 등록할 수 있어요.');
+  if(url.hostname==='localhost' || url.hostname.endsWith('.localhost'))throw new Error('다른 사람도 열 수 있는 공개된 앱 주소를 입력해 주세요.');
+  return url.href;
+}
 function safeRel(entry){
   const p=entry.replaceAll('\\','/');
   if(!p || p.startsWith('/') || p.includes('\0') || /^[a-zA-Z]:/.test(p))return null;
@@ -190,14 +199,18 @@ async function upload(req,res){
   const dir=path.join(APPS_DIR,id);
   try{
     const {fields,files}=await parseMultipart(req);
-    if(!files.app)throw new Error('업로드할 앱 파일을 선택해 주세요.');
+    const mode=(fields.mode||'file').trim();
+    if(!['file','link'].includes(mode))throw new Error('등록 방식을 선택해 주세요.');
+    if(mode==='file'&&!files.app)throw new Error('업로드할 앱 파일을 선택해 주세요.');
+    if(mode==='link'&&files.app)throw new Error('링크 등록 시에는 앱 파일을 첨부하지 마세요.');
     const title=(fields.title||'').trim();
     const author=(fields.author||'').trim();
     const description=(fields.description||'').trim();
     const category=(fields.category||'기타').trim();
-    const ext=isAllowedFile(files.app.filename);
-    if(!ext)throw new Error('HTML, ZIP, APK 파일만 올릴 수 있어요.');
-    if(files.app.data.length>MAX_UPLOAD||!files.app.data.length)throw new Error('앱 크기는 1바이트~65MB여야 합니다.');
+    const ext=mode==='file'?isAllowedFile(files.app.filename):null;
+    if(mode==='file'&&!ext)throw new Error('HTML, ZIP, APK 파일만 올릴 수 있어요.');
+    if(mode==='file'&&(files.app.data.length>MAX_UPLOAD||!files.app.data.length))throw new Error('앱 크기는 1바이트~65MB여야 합니다.');
+    const externalUrl=mode==='link'?safeExternalUrl(fields.linkUrl||''):null;
     if(title.length<1||title.length>60)throw new Error('앱 이름은 1~60자로 적어주세요.');
     if(author.length>40||description.length>600)throw new Error('제작자/설명이 너무 깁니다.');
     if(!['게임','도구','교육','생활','기타'].includes(category))throw new Error('올바른 카테고리를 선택해 주세요.');
@@ -209,8 +222,10 @@ async function upload(req,res){
     }
     await fsp.mkdir(dir,{recursive:true});
     if(iconName)await fsp.writeFile(path.join(dir,iconName),files.icon.data);
-    const kind=ext==='.apk'?'android':'web';
-    if(ext==='.zip'){
+    const kind=mode==='link'?'link':ext==='.apk'?'android':'web';
+    if(mode==='link'){
+      // 외부 사이트를 서버로 내려받지 않고 주소만 저장합니다.
+    }else if(ext==='.zip'){
       const source=path.join(dir,'incoming.zip');
       await fsp.writeFile(source,files.app.data);
       await prepareBrowserApp(source,path.join(dir,'site'));
@@ -220,7 +235,8 @@ async function upload(req,res){
       await fsp.writeFile(path.join(dir,'site','index.html'),files.app.data);
     }else await fsp.writeFile(path.join(dir,'download.apk'),files.app.data);
     const record={id,title,author:author||'익명 개발자',description,category,kind,icon:iconName,
-      size:files.app.data.length,createdAt:new Date().toISOString(),downloads:0};
+      size:mode==='file'?files.app.data.length:0,createdAt:new Date().toISOString(),downloads:0};
+    if(mode==='link')record.linkUrl=externalUrl;
     await mutate(arr=>{arr.unshift(record);});
     respond(res,201,{app:publicApp(record)});
   }catch(e){
@@ -228,7 +244,7 @@ async function upload(req,res){
     if(!res.headersSent)err(res,400,e.message||'업로드에 실패했습니다.');
   }finally{activeUploads--;}
 }
-function publicApp(app){return {...app,playUrl:app.kind==='web'?`/play/${app.id}`:null,downloadUrl:app.kind==='android'?`/download/${app.id}`:null,iconUrl:app.icon?`/icons/${app.id}`:null};}
+function publicApp(app){return {...app,playUrl:app.kind==='web'?`/play/${app.id}`:null,downloadUrl:app.kind==='android'?`/download/${app.id}`:null,externalUrl:app.kind==='link'?app.linkUrl:null,iconUrl:app.icon?`/icons/${app.id}`:null};}
 const badLogin=new Map();
 function loginAllowed(req){const ip=(req.socket.remoteAddress||'unknown').slice(0,80);const now=Date.now();const rec=badLogin.get(ip)||{n:0,at:now};if(now-rec.at>15*60*1000){badLogin.set(ip,{n:0,at:now});return true;}return rec.n<15;}
 function loginFailed(req){const ip=(req.socket.remoteAddress||'unknown').slice(0,80);const now=Date.now();const rec=badLogin.get(ip)||{n:0,at:now};badLogin.set(ip,{n:rec.n+1,at:rec.at});if(badLogin.size>1000)badLogin.clear();}
